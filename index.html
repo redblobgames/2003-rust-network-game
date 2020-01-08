@@ -1,12 +1,20 @@
 <script src="rust_chat_server.js"></script>
 <script>
 /** example from https://javascript.info/websocket */
+
+let socket;
+
+function send_to_server(bytes) {
+    console.log("sending to server:", bytes);
+    socket.send(bytes);
+}
+
 function setUpWebSocket() {
-    let socket = new WebSocket("ws://localhost:9001/");
+    socket = new WebSocket("ws://localhost:9001/");
     
     socket.onopen = event => {
       console.log("Connected:", event);
-      socket.send("My name is Blob");
+      wasm_bindgen.connected();
     };
     
     socket.onmessage = event => {

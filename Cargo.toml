@@ -9,6 +9,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 wasm-bindgen = "0.2"
+serde = { version = "1.0", features = ["derive"] }
+bincode = "1.2"
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 tungstenite = "0.9"

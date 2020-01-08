@@ -6,6 +6,13 @@ mod server {
     use tungstenite::accept_hdr;
     use tungstenite::handshake::server::{Request};
 
+    use serde::{Serialize, Deserialize};
+
+    #[derive(Serialize, Deserialize, Debug)]
+    struct Message {
+        text: String,
+    }
+
     pub fn run() {
         let server = TcpListener::bind("localhost:9001").unwrap();
         for stream in server.incoming() {
@@ -27,8 +34,13 @@ mod server {
                 loop {
                     let msg = websocket.read_message().unwrap();
                     if msg.is_binary() || msg.is_text() {
-                        let msg2 = tungstenite::Message::Binary(vec!(1u8, 2u8, 3u8));
-                        websocket.write_message(msg2).unwrap();
+                        let request: Message = bincode::deserialize(&(msg.into_data())).unwrap();
+                        println!("received from client: {}", request.text);
+                        
+                        let reply = Message { text: String::from("reply from server") };
+                        let encoded = bincode::serialize(&reply).unwrap();
+                        
+                        websocket.write_message(tungstenite::Message::Binary(encoded)).unwrap();
                     }
                 }
             });
