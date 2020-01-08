@@ -1,0 +1,34 @@
+<script src="rust_chat_server.js"></script>
+<script>
+/** example from https://javascript.info/websocket */
+function setUpWebSocket() {
+    let socket = new WebSocket("ws://localhost:9001/");
+    
+    socket.onopen = event => {
+      console.log("Connected:", event);
+      socket.send("My name is Blob");
+    };
+    
+    socket.onmessage = event => {
+      console.log("Received:", event);
+      let fileReader = new FileReader();
+      fileReader.onload = e => wasm_bindgen.handle_message(new Uint8Array(e.target.result));
+      fileReader.readAsArrayBuffer(event.data);
+    };
+    
+    socket.onclose = event => {
+      if (event.wasClean) {
+        console.log(`Closed: code=${event.code} reason=${event.reason}`);
+      } else {
+        console.log(`Died: code=${event.code} reason=${event.reason}`);
+      }
+    };
+    
+    socket.onerror = error => {
+      console.log(`Error: ${error.message}`);
+    };
+}
+
+wasm_bindgen("rust_chat_server_bg.wasm")
+        .then(setUpWebSocket);
+</script>

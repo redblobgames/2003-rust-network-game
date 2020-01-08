@@ -1,0 +1,18 @@
+[package]
+name = "rust_chat_server"
+version = "0.1.0"
+authors = ["Amit Patel <redblobgames@gmail.com>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+
+[target.'cfg(target_arch = "x86_64")'.dependencies]
+tungstenite = "0.9"
+
+[profile.release]
+lto = true
+opt-level = 'z'
