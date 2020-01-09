@@ -11,7 +11,7 @@ WASM = target/wasm32-unknown-unknown/$(BUILDTYPE)/rust_chat_server.wasm
 all: $(BUILD)/rust_chat_server_bg.wasm target/debug/chat_server
 
 run-server:
-	cargo run --bin chat_server
+	RUST_BACKTRACE=1 cargo run --bin chat_server
 
 target/debug/chat_server: $(RS_SRC)
 	cargo build --bin chat_server
