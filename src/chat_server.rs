@@ -1,17 +1,13 @@
+mod common;
+    
 #[cfg(target_arch = "x86_64")]
 mod server {
     use std::net::TcpListener;
     use std::thread::spawn;
+    use crate::common::*;
 
     use tungstenite::accept_hdr;
     use tungstenite::handshake::server::{Request};
-
-    use serde::{Serialize, Deserialize};
-
-    #[derive(Serialize, Deserialize, Debug)]
-    struct Message {
-        text: String,
-    }
 
     pub fn run() {
         let server = TcpListener::bind("localhost:9001").unwrap();

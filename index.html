@@ -9,6 +9,8 @@ function send_to_server(bytes) {
     socket.send(bytes);
 }
 
+// TODO: open, close socket methods, so that it can all be driven from the rust side. Maybe need Rust side to have a JsValue to hold the socket on its side too? No, just keep it simple so that socket.onmessage can call wasm_bindgen global
+
 function setUpWebSocket() {
     socket = new WebSocket("ws://localhost:9001/");
     

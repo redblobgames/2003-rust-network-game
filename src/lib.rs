@@ -1,5 +1,7 @@
 use wasm_bindgen::prelude::*;
-use serde::{Serialize, Deserialize};
+
+pub mod common;
+use common::*;
 
 macro_rules! console_log {
     ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
@@ -12,11 +14,6 @@ extern "C" {
 
     #[wasm_bindgen]
     fn send_to_server(msg: &[u8]);
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct Message {
-    text: String,
 }
 
 #[wasm_bindgen]
