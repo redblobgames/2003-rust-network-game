@@ -48,16 +48,22 @@ mod server {
                         println!("SIM: connect from {}", addr);
                         net_tx.send(Reply::Player(ServerToClientMessage::SetName{name: addr.clone()})).unwrap();
                         channels.insert(addr, net_tx);
+                        for net_tx in channels.values() {
+                            net_tx.send(Reply::Player(ServerToClientMessage::SetConnectionCount{count: channels.len() as u32})).unwrap();
+                        }
                     },
                     Request::Player(addr, ClientToServerMessage::Chat{text}) => {
                         println!("SIM: message from {}: {}", addr, text);
-                        for (_addr, net_tx) in &channels {
+                        for net_tx in channels.values() {
                             net_tx.send(Reply::Player(ServerToClientMessage::Chat{from: addr.clone(), text: text.clone()})).unwrap();
                         }
                     },
                     Request::Disconnect(addr) => {
                         println!("SIM: disconnect from {}", addr);
                         channels.remove(&addr);
+                        for net_tx in channels.values() {
+                            net_tx.send(Reply::Player(ServerToClientMessage::SetConnectionCount{count: channels.len() as u32})).unwrap();
+                        }
                     },
                 };
             }

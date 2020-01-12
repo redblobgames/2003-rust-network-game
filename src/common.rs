@@ -13,6 +13,7 @@ use serde::{Serialize, Deserialize};
 pub enum ServerToClientMessage {
     Chat{from: String, text: String},
     SetName{name: String},
+    SetConnectionCount{count: u32},
 }
 
 #[derive(Serialize, Deserialize)]

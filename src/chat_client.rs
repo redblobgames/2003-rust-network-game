@@ -29,6 +29,9 @@ mod client {
 
         #[wasm_bindgen]
         fn set_name(name: &str);
+        
+        #[wasm_bindgen]
+        fn set_connection_count(count: u32);
     }
 
     #[wasm_bindgen]
@@ -48,6 +51,7 @@ mod client {
         match request {
             ServerToClientMessage::Chat{from, text} => add_to_output(&from, &text),
             ServerToClientMessage::SetName{name} => set_name(&name),
+            ServerToClientMessage::SetConnectionCount{count} => set_connection_count(count),
         };
     }
 }

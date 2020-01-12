@@ -3,6 +3,7 @@
 <form method="none" onsubmit="return sendText()">
   <label><span id="name">(connecting)</span>: <input id="input" /></label><input type="submit" value="Go"/>
   <pre id="output"></pre>
+  <div>Currently connected: <span id="count">?</span></div>
 </form>
 
 <script>
@@ -17,6 +18,11 @@
   function set_name(name) {
       const span = document.querySelector("#name");
       span.textContent = name;
+  }
+
+  function set_connection_count(count) {
+      const span = document.querySelector("#count");
+      span.textContent = count;
   }
   
   function add_to_output(from, text) {
@@ -49,16 +55,13 @@
       };
       
       socket.onclose = event => {
-          if (event.wasClean) {
-              console.log(`Closed: code=${event.code} reason=${event.reason}`);
-          } else {
-              console.log(`Died: code=${event.code} reason=${event.reason}`);
-          }
+          add_to_output("SYSTEM", `Connection closed\n{code ${event.code} reason ${event.reason}}`);
+          set_connection_count("no");
       };
       
       socket.onerror = error => {
-          const pre = document.querySelector("#output");
-          pre.textContent = "Error (is the server running?)";
+          add_to_output("SYSTEM", "Error (is the server running?)");
+          set_connection_count("error");
       };
   }
 
