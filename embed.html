@@ -1,7 +1,7 @@
 <script src="chat_client.js"></script>
 
 <form method="none" onsubmit="return sendText()">
-  <label>Send message: <input id="input" /></label><input type="submit" value="Go"/>
+  <label><span id="name">(connecting)</span>: <input id="input" /></label><input type="submit" value="Go"/>
   <pre id="output"></pre>
 </form>
 
@@ -14,9 +14,14 @@
       socket.send(bytes);
   }
 
-  function add_to_output(text) {
+  function set_name(name) {
+      const span = document.querySelector("#name");
+      span.textContent = name;
+  }
+  
+  function add_to_output(from, text) {
       const pre = document.querySelector("#output");
-      pre.textContent += text + '\n';
+      pre.textContent += `[${from}]: ${text}\n`;
   }
   
   function sendText() {
@@ -52,7 +57,8 @@
       };
       
       socket.onerror = error => {
-          console.log(`Error: ${error.message}`);
+          const pre = document.querySelector("#output");
+          pre.textContent = "Error (is the server running?)";
       };
   }
 

@@ -10,6 +10,12 @@
 use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize)]
-pub struct Message {
-    pub text: String,
+pub enum ServerToClientMessage {
+    Chat{from: String, text: String},
+    SetName{name: String},
+}
+
+#[derive(Serialize, Deserialize)]
+pub enum ClientToServerMessage {
+    Chat{text: String},
 }

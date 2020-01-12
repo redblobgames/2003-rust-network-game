@@ -25,7 +25,10 @@ mod client {
         fn send_to_server(msg: &[u8]);
 
         #[wasm_bindgen]
-        fn add_to_output(msg: &str);
+        fn add_to_output(from: &str, text: &str);
+
+        #[wasm_bindgen]
+        fn set_name(name: &str);
     }
 
     #[wasm_bindgen]
@@ -34,15 +37,18 @@ mod client {
 
     #[wasm_bindgen]
     pub fn handle_input(text: &str) {
-        let reply = Message {text: String::from(text)};
+        let reply = ClientToServerMessage::Chat{text: String::from(text)};
         let encoded: Vec<u8> = bincode::serialize(&reply).unwrap();
         send_to_server(&encoded);
     }
 
     #[wasm_bindgen]
     pub fn handle_message(data: &[u8]) {
-        let request: Message = bincode::deserialize(&data).unwrap();
-        add_to_output(&request.text);
+        let request: ServerToClientMessage = bincode::deserialize(&data).unwrap();
+        match request {
+            ServerToClientMessage::Chat{from, text} => add_to_output(&from, &text),
+            ServerToClientMessage::SetName{name} => set_name(&name),
+        };
     }
 }
 

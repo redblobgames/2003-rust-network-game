@@ -21,13 +21,18 @@ mod server {
 
     enum Request {
         Connect(String, mpsc::Sender<Reply>),
-        Player(String, Message),
+        Player(String, ClientToServerMessage),
         Disconnect(String),
     }
 
     enum Reply {
-        ChatText(String),
+        Player(ServerToClientMessage),
     }
+
+    // https://en.wikipedia.org/wiki/List_of_Egyptian_deities
+    const NAMES: &[&str] = &["Anubis", "Wosret", "Pakhet", "Aten", "Anuket", "Isis", "Maat",
+                             "Nefertum", "Ra", "Thoth", "Khepri", "Kek", "Ba'alat", "Mafdet",
+                             "Qerhet", "Satet", "Esna", "Thmei", "Tafner", "Unnit", "Apep"];
     
     pub fn run() {
         let socket_timeout = time::Duration::new(0, 500 * 1_000_000);
@@ -41,12 +46,13 @@ mod server {
                 match request {
                     Request::Connect(addr, net_tx) => {
                         println!("SIM: connect from {}", addr);
+                        net_tx.send(Reply::Player(ServerToClientMessage::SetName{name: addr.clone()})).unwrap();
                         channels.insert(addr, net_tx);
                     },
-                    Request::Player(addr, Message{text}) => {
+                    Request::Player(addr, ClientToServerMessage::Chat{text}) => {
                         println!("SIM: message from {}: {}", addr, text);
                         for (_addr, net_tx) in &channels {
-                            net_tx.send(Reply::ChatText(format!("[{}] {}", addr, text))).unwrap();
+                            net_tx.send(Reply::Player(ServerToClientMessage::Chat{from: addr.clone(), text: text.clone()})).unwrap();
                         }
                     },
                     Request::Disconnect(addr) => {
@@ -63,7 +69,12 @@ mod server {
             let stream = stream.unwrap();
             stream.set_read_timeout(Some(socket_timeout)).unwrap();
             let sim_tx = sim_tx.clone();
-            let addr = format!("{:?}", stream.peer_addr().unwrap());
+            let port: u16 = stream.peer_addr().unwrap().port();
+            let addr = {
+                let id: usize = ((port >> 8) | ((port & 0xff) << 8)) as usize;
+                format!("{}{}", NAMES[id % NAMES.len()], id / NAMES.len())
+            };
+            println!("Network connection from {:?} mapped to {}", stream.peer_addr().unwrap(), addr);
             let (net_tx, net_rx) = mpsc::channel::<Reply>();
 
             thread::spawn(move || {
@@ -85,7 +96,7 @@ mod server {
                 loop {
                     match websocket.read_message() {
                         Ok(msg) if msg.is_binary() => {
-                            let request: Message = bincode::deserialize(&(msg.into_data())).unwrap();
+                            let request: ClientToServerMessage = bincode::deserialize(&(msg.into_data())).unwrap();
                             sim_tx.send(Request::Player(addr.clone(), request)).unwrap();
                         },
                         Ok(msg) if msg.is_close() => {
@@ -106,8 +117,7 @@ mod server {
                     
                     for message in net_rx.try_iter() {
                         match message {
-                            Reply::ChatText(text) => {
-                                let reply = Message{text};
+                            Reply::Player(reply) => {
                                 let encoded = bincode::serialize(&reply).unwrap();
                                 websocket.write_message(tungstenite::Message::Binary(encoded)).unwrap();
                             },
