@@ -85,7 +85,7 @@ mod server {
                             break;
                         },
                     }
-
+                    
                     for message in net_rx.try_iter() {
                         match message {
                             Reply::ChatText(text) => {

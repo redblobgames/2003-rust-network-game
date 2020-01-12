@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Amit Patel <redblobgames@gmail.com>"]
 edition = "2018"
 
-[lib]
+[lib.'cft(target_arch = "unknown")']
 crate-type = ["cdylib"]
 
 [[bin]]
@@ -17,7 +17,7 @@ serde = { version = "1.0", features = ["derive"] }
 bincode = "1.2"
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
-tungstenite = "0.9"
+tungstenite = { version = "0.9", default-features = false, features = [] }
 
 [profile.release]
 lto = true
