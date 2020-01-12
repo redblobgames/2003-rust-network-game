@@ -55,9 +55,17 @@ mod server {
             let sim_tx = sim_tx.clone();
             let addr = format!("{:?}", stream.peer_addr().unwrap());
             let (net_tx, net_rx) = mpsc::channel::<Reply>();
-            
+
             thread::spawn(move || {
-                let mut websocket = tungstenite::accept(stream).unwrap();
+                let callback = |req: &tungstenite::handshake::server::Request| {
+                    /* I don't really need the headers except for logging */
+                    if let Some(s) = req.headers.find_first("X-Real-IP") {
+                        println!("IP for {} = {}", addr, String::from_utf8((*s).to_vec()).expect("invalid utf-8"));
+                    }
+                    Ok(None)
+                };
+            
+                let mut websocket = tungstenite::accept_hdr(stream, callback).unwrap();
                 sim_tx.send(Request::Connect(addr.clone(), net_tx)).unwrap();
 
                 // This loop handles both player events (from the

@@ -1,4 +1,4 @@
-<script src="rust_chat_server.js"></script>
+<script src="chat_client.js"></script>
 
 <form method="none" onsubmit="return sendText()">
   <label>Send message: <input id="input" /></label><input type="submit" value="Go"/>
@@ -21,7 +21,9 @@
   
   function sendText() {
       let input = document.querySelector("#input");
-      wasm_bindgen.handle_input(input.value);
+      if (input.value.length > 0) {
+          wasm_bindgen.handle_input(input.value);
+      }
       input.value = "";
       return false;
   }
@@ -54,6 +56,6 @@
       };
   }
 
-  wasm_bindgen("rust_chat_server_bg.wasm")
+  wasm_bindgen("chat_client_bg.wasm")
       .then(setUpWebSocket);
 </script>

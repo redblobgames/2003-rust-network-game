@@ -1,33 +1,43 @@
 # Makefile builds a wasm client library, a mac server binary, and a linux server binary
 
-# RELEASECLIENT = --release
-BUILD = /Users/amitp/Sites/redblobgames/x/z
+# CLIENT_RELEASE = --release
 
+.SUFFIXES:
 .PHONY: clean
 RS_SRC = $(shell find src -type f -name '*.rs') Cargo.toml
-BUILDTYPE = $(if $(RELEASECLIENT),release,debug)
-WASM = target/wasm32-unknown-unknown/$(BUILDTYPE)/rust_chat_server.wasm
-MAC_SERVER = target/debug/chat_server
-LINUX_SERVER = target/x86_64-unknown-linux-musl/release/chat_server
+BUILDTYPE = $(if $(CLIENT_RELEASE),release,debug)
+_MKDIRS := $(shell mkdir -p build)
+CLIENT_LIB = target/wasm32-unknown-unknown/$(BUILDTYPE)/librust_chat_server.rlib
+CLIENT_WASM = target/wasm32-unknown-unknown/$(BUILDTYPE)/chat_client.wasm
+SERVER_MAC = target/debug/chat_server
+SERVER_LINUX = target/x86_64-unknown-linux-musl/debug/chat_server
 
-all: $(BUILD)/rust_chat_server_bg.wasm $(MAC_SERVER) $(LINUX_SERVER)
+all: build/chat_client.wasm build/chat_server $(SERVER_MAC)
 
-run-server: $(MAC_SERVER)
+run-server: $(SERVER_MAC)
 	RUST_BACKTRACE=1 cargo run --bin chat_server
 
-$(MAC_SERVER): $(RS_SRC)
+$(SERVER_MAC): $(RS_SRC)
 	cargo build --bin chat_server
 
-$(LINUX_SERVER): $(RS_SRC)
-	TARGET_CC=x86_64-linux-musl-gcc cargo build --release --target=x86_64-unknown-linux-musl
+$(SERVER_LINUX): $(RS_SRC)
+	TARGET_CC=x86_64-linux-musl-gcc cargo build --target=x86_64-unknown-linux-musl
 
-$(WASM): $(RS_SRC)
-	cargo build --lib --target wasm32-unknown-unknown $(RELEASECLIENT)
+$(CLIENT_LIB): $(RS_SRC)
+	cargo build --lib --target wasm32-unknown-unknown $(CLIENT_RELEASE)
 
-$(BUILD)/rust_chat_server_bg.wasm: $(WASM) index.html
-	wasm-bindgen --target no-modules $< --out-dir $(BUILD)
-	mkdir -p $(BUILD)
-	cp index.html $(LINUX_SERVER) $(BUILD)/
+$(CLIENT_WASM): $(CLIENT_LIB)
+	cargo build --bin chat_client --target wasm32-unknown-unknown $(CLIENT_RELEASE)
+
+build/chat_server: $(SERVER_LINUX)
+	cp $< $@
+
+build/chat_client.wasm: $(CLIENT_WASM) embed.html
+	wasm-bindgen --target no-modules $< --out-dir build/
+	cp embed.html build/
 
 clean:
 	cargo clean
+
+# consider loading target/debug/chat_server.d, which has more precise rules for
+# Makefile than depending on all rust files $(RS_SRC) 

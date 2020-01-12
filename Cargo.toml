@@ -3,21 +3,34 @@ name = "rust_chat_server"
 version = "0.1.0"
 authors = ["Amit Patel <redblobgames@gmail.com>"]
 edition = "2018"
+repository = "https://github.com/redblobgames/2002-rust-chat-server"
+license = "Apache-2.0"
 
-[lib.'cft(target_arch = "unknown")']
-crate-type = ["cdylib"]
+[lib]
+crate-type = ["rlib"]
+path = "src/chat_client.rs"
+
+[[bin]]
+name = "chat_client"
+path = "src/chat_client.rs"
 
 [[bin]]
 name = "chat_server"
 path = "src/chat_server.rs"
 
 [dependencies]
-wasm-bindgen = "0.2"
 serde = { version = "1.0", features = ["derive"] }
 bincode = "1.2"
+wasm-bindgen = "0.2"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = "0.1.6"
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 tungstenite = { version = "0.9", default-features = false, features = [] }
+
+[profile.dev]
+opt-level = 1
 
 [profile.release]
 lto = true
