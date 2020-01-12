@@ -1,3 +1,13 @@
+// Example chat server
+//
+// I decided to use one thread per network connection instead of using
+// mio/tokio. The network thread both listens to the network and
+// listens to a message queue. The simulation thread (currently chat,
+// but intended to be a game) listens for messages from the network
+// threads, and can write back to the network threads.
+
+// License: Apache-v2.0
+
 mod common;
     
 #[cfg(target_arch = "x86_64")]
@@ -113,4 +123,3 @@ mod server {
 fn main() {
     server::run();
 }
-

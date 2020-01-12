@@ -1,3 +1,14 @@
+// Example chat client for use in webassembly.
+//
+// I decided to put the websocket code on the JS side instead of using
+// web_sys, and put message encoding on the Rust side so that I can
+// share it with the server code. The JS side calls handle_input on
+// the Rust side, and the Rust side calls send_to_server on the JS
+// side. The encoding of messages to and from [u8] is on the Rust
+// side.
+
+// License: Apache-v2.0
+
 mod common;
 
 #[cfg(target_arch = "wasm32")]

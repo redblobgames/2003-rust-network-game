@@ -1,7 +1,7 @@
 #+title: 2002-rust-chat-server
 #+date: <2020-01-10>
 
-[[http://unmaintained.tech/][https://unmaintained.tech/badge.svg]]
+[[http://unmaintained.tech/][http://unmaintained.tech/badge.svg]]
 
 I am learning Rust+Wasm and wanted to set up a way to build /three/ outputs on my Mac from the same Cargo file:
 
@@ -34,15 +34,33 @@ cargo install wasm-bindgen-cli
 
 Install the Linux cross compiler:
 
-#+begin_src
+#+begin_src sh
 rustup target add x86_64-unknown-linux-musl
 brew install FiloSottile/musl-cross/musl-cross
-mkdir -p .cargo
-cat >>.cargo/config <<EOF
+#+end_src
+
+To make the cross-compiler work, the project's =.cargo/config= should contain:
+
+#+begin_src toml
 [target.x86_64-unknown-linux-musl]
 linker = "x86_64-linux-musl-gcc"
-EOF
 #+end_src
+
+* Running
+
+Build the code:
+
+#+begin_src sh
+make
+#+end_src
+
+Run the server:
+
+#+begin_src sh
+make run-server
+#+end_src
+
+Then load =build/embed.html= into your browser.
 
 * Reading
 
