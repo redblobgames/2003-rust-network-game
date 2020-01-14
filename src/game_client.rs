@@ -1,13 +1,13 @@
-// Example chat client for use in webassembly.
-//
-// I decided to put the websocket code on the JS side instead of using
-// web_sys, and put message encoding on the Rust side so that I can
-// share it with the server code. The JS side calls handle_input on
-// the Rust side, and the Rust side calls send_to_server on the JS
-// side. The encoding of messages to and from [u8] is on the Rust
-// side.
-
-// License: Apache-v2.0
+/*
+ * From https://www.redblobgames.com/x/2003-rust-network-game/
+ * Copyright 2020 Red Blob Games <redblobgames@gmail.com>
+ * License: Apache-2.0 <http://www.apache.org/licenses/LICENSE-2.0.html>
+ *
+ * Example game client for use on a web page.
+ *
+ * The game client handles the game logic, but not the UI or
+ * networking. Those are handled by the Javascript side.
+ */
 
 mod common;
 

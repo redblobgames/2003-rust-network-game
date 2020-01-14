@@ -1,50 +1,9 @@
-#+title: 2002-rust-chat-server
-#+date: <2020-01-10>
+#+title: 2003-rust-network-game
+#+date: <2020-01-13>
 
 [[http://unmaintained.tech/][http://unmaintained.tech/badge.svg]]
 
-I am learning Rust+Wasm and wanted to set up a way to build /three/ outputs on my Mac from the same Cargo file:
-
-1. Wasm client
-2. Mac server
-3. Linux server
-
-*I don't think this is the best way to do it* but I am sharing what I did.
-
-* Installing Rust
-
-#+begin_src sh
-brew install rustup
-rustup-init
-# add $HOME/.cargo/bin to $PATH
-
-rustup target add rust-src
-cargo install --version 2.0.13 racer
-#+end_src
-
-Install the Web Assembly tools:
-
-#+begin_src sh
-rustup target add wasm32-unknown-unknown
-brew install wabt binaryen
-cargo install wasm-snip
-cargo install wasm-gc
-cargo install wasm-bindgen-cli
-#+end_src
-
-Install the Linux cross compiler:
-
-#+begin_src sh
-rustup target add x86_64-unknown-linux-musl
-brew install FiloSottile/musl-cross/musl-cross
-#+end_src
-
-To make the cross-compiler work, the project's =.cargo/config= should contain:
-
-#+begin_src toml
-[target.x86_64-unknown-linux-musl]
-linker = "x86_64-linux-musl-gcc"
-#+end_src
+I am learning Rust+Wasm. This is an extension of https://github.com/redblobgames/2002-rust-chat-server but for a simple grid game instead of a chat system.
 
 * Running
 
@@ -61,8 +20,3 @@ make run-server
 #+end_src
 
 Then load =build/embed.html= into your browser.
-
-* Reading
-
-- https://github.com/rust-lang/cargo/issues/4881
-- https://timryan.org/2018/07/27/cross-compiling-linux-binaries-from-macos.html

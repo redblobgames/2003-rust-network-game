@@ -1,22 +1,22 @@
 [package]
-name = "rust_chat_server"
+name = "rust_network_game"
 version = "0.1.0"
 authors = ["Amit Patel <redblobgames@gmail.com>"]
 edition = "2018"
-repository = "https://github.com/redblobgames/2002-rust-chat-server"
+repository = "https://github.com/redblobgames/2003-rust-network-game"
 license = "Apache-2.0"
 
 [lib]
 crate-type = ["rlib"]
-path = "src/chat_client.rs"
+path = "src/game_client.rs"
 
 [[bin]]
-name = "chat_client"
-path = "src/chat_client.rs"
+name = "game_client"
+path = "src/game_client.rs"
 
 [[bin]]
-name = "chat_server"
-path = "src/chat_server.rs"
+name = "game_server"
+path = "src/game_server.rs"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

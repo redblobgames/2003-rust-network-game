@@ -1,4 +1,4 @@
-<script src="chat_client.js"></script>
+<!-- https://www.redblobgames.com/x/2003-rust-network-game/ -->
 
 <form method="none" onsubmit="return sendText()">
   <label><span id="name">(connecting)</span>: <input id="input" /></label><input type="submit" value="Go"/>
@@ -6,65 +6,7 @@
   <div>Currently connected: <span id="count">?</span></div>
 </form>
 
-<script>
-  /** example from https://javascript.info/websocket */
+<canvas id="world" width="800" height="600"/>
 
-  let socket;
-
-  function send_to_server(bytes) {
-      socket.send(bytes);
-  }
-
-  function set_name(name) {
-      const span = document.querySelector("#name");
-      span.textContent = name;
-  }
-
-  function set_connection_count(count) {
-      const span = document.querySelector("#count");
-      span.textContent = count;
-  }
-  
-  function add_to_output(from, text) {
-      const pre = document.querySelector("#output");
-      pre.textContent += `[${from}]: ${text}\n`;
-  }
-  
-  function sendText() {
-      let input = document.querySelector("#input");
-      if (input.value.length > 0) {
-          wasm_bindgen.handle_input(input.value);
-      }
-      input.value = "";
-      return false;
-  }
-  
-  function setUpWebSocket() {
-      socket = new WebSocket(window.location.hostname==='localhost'? "ws://localhost:9001/" : "wss://www.redblobgames.com/ws/");
-      
-      socket.onopen = event => {
-          console.log("Connected:", event);
-          wasm_bindgen.connected();
-          document.querySelector("#input").focus();
-      };
-      
-      socket.onmessage = event => {
-          let fileReader = new FileReader();
-          fileReader.onload = e => wasm_bindgen.handle_message(new Uint8Array(e.target.result));
-          fileReader.readAsArrayBuffer(event.data);
-      };
-      
-      socket.onclose = event => {
-          add_to_output("SYSTEM", `Connection closed\n{code ${event.code} reason ${event.reason}}`);
-          set_connection_count("no");
-      };
-      
-      socket.onerror = error => {
-          add_to_output("SYSTEM", "Error (is the server running?)");
-          set_connection_count("error");
-      };
-  }
-
-  wasm_bindgen("chat_client_bg.wasm")
-      .then(setUpWebSocket);
-</script>
+<script src="game_client.js"></script>
+<script src="game_ui.js"></script>

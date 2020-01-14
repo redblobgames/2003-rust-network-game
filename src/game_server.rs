@@ -1,12 +1,15 @@
-// Example chat server
-//
-// I decided to use one thread per network connection instead of using
-// mio/tokio. The network thread both listens to the network and
-// listens to a message queue. The simulation thread (currently chat,
-// but intended to be a game) listens for messages from the network
-// threads, and can write back to the network threads.
-
-// License: Apache-v2.0
+/*
+ * From https://www.redblobgames.com/x/2003-rust-network-game/
+ * Copyright 2020 Red Blob Games <redblobgames@gmail.com>
+ * License: Apache-2.0 <http://www.apache.org/licenses/LICENSE-2.0.html>
+ *
+ * Example game server
+ *
+ * Each connection is handle by a network thread, which both listens
+ * to the network and listens to a message queue. The simulation
+ * thread listens for messages from the network threads, and can write
+ * back to the network threads.
+ */
 
 mod common;
     
