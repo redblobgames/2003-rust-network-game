@@ -7,11 +7,39 @@
 
 /* global wasm_bindgen, WebSocket, FileReader */
 
-let socket;
+let connection;
 
-function send_to_server(bytes) {
-    socket.send(bytes);
+class Connection {
+    constructor(url) {
+        this.socket = new WebSocket(url);
+        
+        this.socket.onopen = event => {
+            wasm_bindgen.connected();
+            document.querySelector("#input").focus();
+        };
+        
+        this.socket.onmessage = event => {
+            let fileReader = new FileReader();
+            fileReader.onload = e => wasm_bindgen.handle_message(new Uint8Array(e.target.result));
+            fileReader.readAsArrayBuffer(event.data);
+        };
+        
+        this.socket.onclose = event => {
+            add_to_output("SYSTEM", `Connection closed\n{code ${event.code} reason ${event.reason}}`);
+            set_connection_count("no");
+        };
+        
+        this.socket.onerror = error => {
+            add_to_output("SYSTEM", "Error (is the server running?)");
+            set_connection_count("error");
+        };
+    }
+
+    send_to_server(bytes) {
+        this.socket.send(bytes);
+    }
 }
+
 
 function set_name(name) {
     const span = document.querySelector("#name");
@@ -37,30 +65,11 @@ function sendText() {
     return false;
 }
 
-function setUpWebSocket() {
-    socket = new WebSocket(window.location.hostname==='localhost'? "ws://localhost:9001/" : "wss://www.redblobgames.com/ws/");
-    
-    socket.onopen = event => {
-        wasm_bindgen.connected();
-        document.querySelector("#input").focus();
-    };
-    
-    socket.onmessage = event => {
-        let fileReader = new FileReader();
-        fileReader.onload = e => wasm_bindgen.handle_message(new Uint8Array(e.target.result));
-        fileReader.readAsArrayBuffer(event.data);
-    };
-    
-    socket.onclose = event => {
-        add_to_output("SYSTEM", `Connection closed\n{code ${event.code} reason ${event.reason}}`);
-        set_connection_count("no");
-    };
-    
-    socket.onerror = error => {
-        add_to_output("SYSTEM", "Error (is the server running?)");
-        set_connection_count("error");
-    };
-}
-
 wasm_bindgen("game_client_bg.wasm")
-    .then(setUpWebSocket);
+    .then(() => {
+            connection = new Connection(
+                window.location.hostname==='localhost'
+                    ? "ws://localhost:9001/"
+                    : "wss://www.redblobgames.com/ws/"
+            );
+    });

@@ -21,7 +21,7 @@ mod client {
         #[wasm_bindgen(js_namespace = console, js_name = log)]
         fn log(s: &str);
 
-        #[wasm_bindgen]
+        #[wasm_bindgen(js_namespace = connection)]
         fn send_to_server(msg: &[u8]);
 
         #[wasm_bindgen]
