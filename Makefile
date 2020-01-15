@@ -34,7 +34,8 @@ build/game_server: $(SERVER_LINUX)
 
 build/game_client.wasm: $(CLIENT_WASM) embed.html
 	wasm-bindgen --target no-modules $< --out-dir build/
-	cp embed.html game_ui.js build/
+	cp embed.html game_ui.js wildshadow.js build/
+	rsync -a -i assets/ build/assets/
 
 clean:
 	cargo clean

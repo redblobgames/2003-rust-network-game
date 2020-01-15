@@ -3,7 +3,7 @@
 
 [[http://unmaintained.tech/][http://unmaintained.tech/badge.svg]]
 
-I am learning Rust+Wasm. This is an extension of https://github.com/redblobgames/2002-rust-chat-server but for a simple grid game instead of a chat system.
+I am learning Rust+Wasm. This is an extension of https://github.com/redblobgames/2002-rust-chat-server but for a simple grid game instead of a chat system. I'm using the grid drawing code from https://www.redblobgames.com/x/1634-wildshadow-ama/
 
 * Running
 
