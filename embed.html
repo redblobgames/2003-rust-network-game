@@ -1,14 +1,19 @@
 <!-- https://www.redblobgames.com/x/2003-rust-network-game/ -->
 
-<form method="none" onsubmit="return sendText()">
-  <label><span id="name">(connecting)</span>: <input id="input" /></label><input type="submit" value="Go"/>
+<form method="none" onsubmit="return formSubmit()">
+  <label>
+    <span id="name">(connecting)</span>:
+    <input id="input" />
+  </label> <input type="submit" value="Go"/>
+  
   <pre id="output"></pre>
   <div>Currently connected: <span id="count">?</span></div>
 </form>
 
-<canvas id="view"/>
+<canvas tabindex="0" id="view"></canvas>
 <div id="message"></div>
-<canvas id="minimap"></canvas>
+<div id="message2"></div>
+<canvas id="minimap" style="width:1px"></canvas>
 
 <script src="game_client.js"></script>
 <script src="game_ui.js"></script>

@@ -25,13 +25,13 @@ class Connection {
         };
         
         this.socket.onclose = event => {
-            add_to_output("SYSTEM", `Connection closed\n{code ${event.code} reason ${event.reason}}`);
-            set_connection_count("no");
+            output.push("SYSTEM", `Connection closed\n{code ${event.code} reason ${event.reason}}`);
+            output.set_connection_count("no");
         };
         
         this.socket.onerror = error => {
-            add_to_output("SYSTEM", "Error (is the server running?)");
-            set_connection_count("error");
+            output.push("SYSTEM", "Error (is the server running?)");
+            output.set_connection_count("error");
         };
     }
 
@@ -41,22 +41,58 @@ class Connection {
 }
 
 
-function set_name(name) {
-    const span = document.querySelector("#name");
-    span.textContent = name;
-}
+const output = {
+    view: document.getElementById('view'),
+    
+    set_name(name) {
+        const span = document.querySelector("#name");
+        span.textContent = name;
+    },
 
-function set_connection_count(count) {
-    const span = document.querySelector("#count");
-    span.textContent = count;
-}
+    set_connection_count(count) {
+        const span = document.querySelector("#count");
+        span.textContent = count;
+    },
 
-function add_to_output(from, text) {
-    const pre = document.querySelector("#output");
-    pre.textContent += `[${from}]: ${text}\n`;
-}
+    push(from, text) {
+        const pre = document.querySelector("#output");
+        pre.textContent += `[${from}]: ${text}\n`;
+    },
+};
 
-function sendText() {
+const input = {
+};
+
+
+// Send events to the Rust side ; TODO: should distinguish
+// between text input area having focus and not
+output.view.addEventListener('keydown', event => {
+    wasm_bindgen.handle_keydown(event.keyCode);
+});
+output.view.addEventListener('keyup', event => {
+    wasm_bindgen.handle_keyup(event.keyCode);
+});
+
+
+// We need keyboard focus; this is a hack to tell the player to click
+function checkFocus() {
+    const focusMessage = "Click to focus";
+    const messageBox = document.getElementById('message');
+    if (document.hasFocus) {
+        if (!document.hasFocus()) {
+            messageBox.textContent = focusMessage;
+        } else if (messageBox.textContent == focusMessage) {
+            messageBox.textContent = "";
+        }
+    }
+}
+window.addEventListener('click', checkFocus, true);
+window.addEventListener('focusin', checkFocus, true);
+window.addEventListener('focusout', checkFocus, true);
+
+
+
+function formSubmit() {
     let input = document.querySelector("#input");
     if (input.value.length > 0) {
         wasm_bindgen.handle_input(input.value);
@@ -65,11 +101,12 @@ function sendText() {
     return false;
 }
 
+
 wasm_bindgen("game_client_bg.wasm")
     .then(() => {
-            connection = new Connection(
-                window.location.hostname==='localhost'
-                    ? "ws://localhost:9001/"
-                    : "wss://www.redblobgames.com/ws/"
-            );
+        connection = new Connection(
+            window.location.hostname==='localhost'
+                ? "ws://localhost:9001/"
+                : "wss://www.redblobgames.com/ws/"
+        );
     });

@@ -316,14 +316,14 @@ window.addEventListener('keydown', keyDownHandler, true);
 
 // We need keyboard focus; this is a hack to tell the player to click
 function checkFocus() {
-    const focusMessage = "Click to focus";
-    const messageBox = document.getElementById('message');
-    if (document.hasFocus) {
-        if (!document.hasFocus()) {
-            messageBox.textContent = focusMessage;
-        } else if (messageBox.textContent == focusMessage) {
-            messageBox.textContent = "";
-        }
+    const messageBox = document.getElementById('message2');
+    const activeId = document.activeElement && document.activeElement.id;
+    if (activeId === 'view') {
+        messageBox.textContent = "WASD or arrow keys to move";
+    } else if (activeId === 'input') {
+        messageBox.textContent = "Enter text to chat";
+    } else {
+        messageBox.textContent = "Click on map to focus";
     }
 }
 window.addEventListener('click', checkFocus, true);
