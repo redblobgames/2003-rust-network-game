@@ -60,14 +60,14 @@ mod client {
     pub fn handle_keydown(key: i32) {
         let mut world = WORLD.lock().unwrap();
         world.keys_down.insert(key);
-        let s = format!("keydown({})", key);
+        let s = format!("keys down({:?})", world.keys_down);
         log(&s);
     }
 
     #[wasm_bindgen]
     pub fn handle_keyup(key: i32) {
         let mut world = WORLD.lock().unwrap();
-        world.keys_down.remove(key);
+        world.keys_down.remove(&key);
         let s = format!("keyup({})", key);
         log(&s);
     }

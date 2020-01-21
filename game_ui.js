@@ -7,6 +7,8 @@
 
 /* global wasm_bindgen, WebSocket, FileReader */
 
+const KEY_ENTER = 13;
+
 let connection;
 
 class Connection {
@@ -40,10 +42,12 @@ class Connection {
     }
 }
 
+const widgets = {
+    view: document.getElementById('view'),
+    input: document.querySelector("#input"),
+};
 
 const output = {
-    view: document.getElementById('view'),
-    
     set_name(name) {
         const span = document.querySelector("#name");
         span.textContent = name;
@@ -64,26 +68,50 @@ const input = {
 };
 
 
-// Send events to the Rust side ; TODO: should distinguish
-// between text input area having focus and not
-output.view.addEventListener('keydown', event => {
-    wasm_bindgen.handle_keydown(event.keyCode);
+/* Send events to the Rust side:
+ *
+ * 1. Focus can be on either the map or the input box.
+ * 2. While the map has focus, every keystroke is sent to Rust.
+ * 3. While the input box has focus, entire lines are sent to Rust.
+ * 4. Pressing Enter switches focus between map and input box.
+ *
+ */
+widgets.view.addEventListener('keydown', event => {
+    if (event.keyCode === KEY_ENTER) {
+        widgets.input.focus();
+        event.preventDefault();
+    } else {
+        wasm_bindgen.handle_keydown(event.keyCode);
+        keyDownHandler(event); // HACK: refactor
+    }
 });
-output.view.addEventListener('keyup', event => {
+
+widgets.view.addEventListener('keyup', event => {
     wasm_bindgen.handle_keyup(event.keyCode);
+    keyUpHandler(event); // HACK: refactor
 });
+
+function formSubmit() { // called when pressing Enter on text input box
+    if (widgets.input.value.length > 0) {
+        wasm_bindgen.handle_text_entry(widgets.input.value);
+    }
+    widgets.input.value = "";
+    widgets.input.blur();
+    widgets.view.focus();
+    return false;
+}
 
 
 // We need keyboard focus; this is a hack to tell the player to click
 function checkFocus() {
-    const focusMessage = "Click to focus";
-    const messageBox = document.getElementById('message');
-    if (document.hasFocus) {
-        if (!document.hasFocus()) {
-            messageBox.textContent = focusMessage;
-        } else if (messageBox.textContent == focusMessage) {
-            messageBox.textContent = "";
-        }
+    const messageBox = document.getElementById('message2');
+    const activeId = document.activeElement && document.activeElement.id;
+    if (activeId === 'view') {
+        messageBox.textContent = "WASD or arrow keys to move; Enter to chat";
+    } else if (activeId === 'input') {
+        messageBox.textContent = "Enter text to chat";
+    } else {
+        messageBox.textContent = "Click on map to focus";
     }
 }
 window.addEventListener('click', checkFocus, true);
@@ -91,15 +119,6 @@ window.addEventListener('focusin', checkFocus, true);
 window.addEventListener('focusout', checkFocus, true);
 
 
-
-function formSubmit() {
-    let input = document.querySelector("#input");
-    if (input.value.length > 0) {
-        wasm_bindgen.handle_input(input.value);
-    }
-    input.value = "";
-    return false;
-}
 
 
 wasm_bindgen("game_client_bg.wasm")
