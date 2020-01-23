@@ -41,6 +41,9 @@ mod client {
         
         #[wasm_bindgen(js_namespace = output)]
         fn set_connection_count(count: u32);
+
+        #[wasm_bindgen]
+        fn draw_map(player_facing: i32, player_x: i32, player_y: i32);
     }
 
     macro_rules! console_log {
@@ -50,7 +53,7 @@ mod client {
     
     #[derive(Copy, Clone, PartialEq, Debug)]
     enum Dir {
-        North, East, South, West,
+        North = 0, East = 1, South = 2, West = 3,
     }
 
     #[derive(Copy, Clone)]
@@ -128,6 +131,7 @@ mod client {
         let mut world = WORLD.lock().unwrap();
         world.map_size = (map_width, map_height);
         world.map = map;
+        world.needs_redraw = true;
     }
     
     #[wasm_bindgen]
@@ -149,6 +153,12 @@ mod client {
         let new_pos = (world.player_pos.0 + clamp(dx, -1, 1),
                        world.player_pos.1 + clamp(dy, -1, 1));
         set_player_pos(&mut world, new_pos);
+
+        if world.needs_redraw {
+            world.needs_redraw = false;
+            draw_map(world.player_facing as i32,
+                     world.player_pos.0, world.player_pos.1);
+        }
     }
     
     #[wasm_bindgen]
@@ -161,6 +171,8 @@ mod client {
             None => (),
         };
         return command.is_some();
+        // TODO: move player now too, to get immediate response; but
+        // also need to record time so that we don't move too soon
     }
 
     #[wasm_bindgen]

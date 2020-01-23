@@ -5,16 +5,6 @@
  */
 
 
-
-
-/* GLOBALS */
-
-var map = null;
-var camera = {x: 127, y: 154, facing: 'east'}; // in tiles
-var admin = (document.location.hostname == "localhost"); // no cheat protection, go ahead
-
-
-
 /* Tile types adapted from ~redblobgames/Projects/flash10/mapgen/level_editor.as
  *     [name, color, passable, spritesheet, spriteid, ...]
  * When spritesheet is the string 'tile', spriteid will be another entry in tileTypes
@@ -78,7 +68,7 @@ const regions = [
 var ama_locations =  [[67, 186], [173, 73], [49, 195], [231, 173], [54, 203], [103, 96], [93, 189], [177, 103], [61, 201], [65, 40], [93, 154], [124, 59], [84, 138], [178, 168], [83, 187], [64, 125], [58, 191], [134, 55], [49, 204], [182, 219], [45, 198], [77, 181], [163, 70], [102, 159], [47, 189], [171, 78], [134, 47], [158, 112], [136, 51], [93, 114], [44, 118], [95, 93], [175, 107], [70, 128], [87, 189], [179, 162], [77, 132], [170, 149], [81, 134], [128, 43], [174, 128], [181, 172], [101, 43], [186, 164], [167, 139], [228, 176], [171, 132], [167, 74], [38, 118], [110, 160], [55, 126], [53, 193], [88, 144], [56, 197], [97, 185], [116, 158], [187, 226], [85, 150], [176, 76], [124, 47], [165, 83], [126, 66], [169, 115], [67, 36], [80, 184], [98, 39], [181, 158], [41, 202], [59, 205], [86, 110], [174, 146], [123, 53]] ;
 
 function colorToTile(colorABGR) {
-    let colorRGB = (colorABGR & 0xff << 16) | (colorABGR & 0xff00) | (colorABGR & 0xff0000 >> 16);
+    let colorRGB = ((colorABGR & 0xff) << 16) | (colorABGR & 0xff00) | ((colorABGR & 0xff0000) >> 16);
     var result = {type: 0};
     for (var i = 0; i < tileTypes.length; i++) {
         if (colorRGB == tileTypes[i][1]) {
@@ -86,26 +76,6 @@ function colorToTile(colorABGR) {
         }
     }
     return result;
-}
-
-function setMapDataFromImage(image) {
-    const canvas = document.createElement('canvas');
-    canvas.width = image.width;
-    canvas.height = image.height;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(image, 0, 0);
-
-    var imageDataU32 = new Uint32Array(ctx.getImageData(0, 0, image.width, image.height).data.buffer);
-    map = [];
-    for (var y = 0; y < image.height; y++) {
-        map[y] = [];
-        for (var x = 0; x < image.width; x++) {
-            var i = image.width * y + x;
-            map[y][x] = colorToTile(imageDataU32[i]);
-        }
-    }
-
-    wasm_bindgen.set_mapdata(image.width, image.height, imageDataU32);
 }
 
 // The map index is something I used during development to make a list
@@ -126,25 +96,6 @@ function buildMapIndex() {
     return mapIndex;
 }
     
-
-function drawTile(ctx, x, y, tile) {
-    for (var i = 3; i+1 < tileTypes[tile.type].length; i += 2) {
-        if (tileTypes[tile.type][i] == 'color') {
-            ctx.fillStyle = tileTypes[tile.type][i+1];
-            ctx.fillRect(x, y, tileSize, tileSize);
-        } else if (tileTypes[tile.type][i] == 'tile') {
-            for (var j = 0; j < tileTypes.length; j++) {
-                if (tileTypes[j][0] == tileTypes[tile.type][i+1]) {
-                    drawTile(ctx, x, y, {type: j});
-                }
-            }
-        } else {
-            var spritesheet = tileTypes[tile.type][i];
-            var spriteId = tileTypes[tile.type][i+1];
-            spritesheet.drawSpriteTo(ctx, x, y, spriteId);
-        }
-    }
-}
 
 
 
@@ -172,42 +123,9 @@ function waterDepthAt(x, y) {
     return distanceToLand;
 }
 
-function drawMap() {
-    if (output.oryx_char.image == null || output.oryx_env.image == null || output.oryx_obj.image == null || map == null) return;
-
-    var view = document.getElementById('view');
-
-    function roundUp(x) { return Math.floor(x/tileSize) * tileSize; }
-    var v = {w: roundUp(view.clientWidth), h: roundUp(view.clientHeight)};
-    view.width = v.w;
-    view.height = v.h;
-    
-    var ctx = view.getContext('2d');
-    ctx.imageSmoothingEnabled = false;
-
-    ctx.scale(zoom, zoom);
-    for (var tileY = 0; tileY < map.length; tileY++) {
-        for (var tileX = 0; tileX < map[tileY].length; tileX++) {
-            var screenX = (tileX-0.5 - camera.x) * tileSize + v.w/zoom/2;
-            var screenY = (tileY-0.5 - camera.y) * tileSize + v.h/zoom/2;
-            if (screenX > -tileSize && screenX < v.w/zoom+tileSize
-                && screenY > -tileSize && screenY < v.h/zoom+tileSize) {
-                drawTile(ctx, screenX, screenY, map[tileY][tileX]);
-            }
-        }
-    }
-    var playerOffset = waterDepthAt(camera.x, camera.y);
-    output.oryx_char.drawSpriteTo(ctx,
-                          -0.5*tileSize + v.w/zoom/2, -0.5*tileSize + v.h/zoom/2 + playerOffset,
-                           {'east': 0x1e0, 'south': 0x1e1, 'west': 0x1e2, 'north': 0x1e3}[camera.facing],
-                           tileSize, tileSize - playerOffset);
-    
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-}
-
 function updateMessages() {
     var message = "";
-    if (admin) { message = "x=" + camera.x + " y=" + camera.y; }
+    if (ADMIN) { message = "x=" + camera.x + " y=" + camera.y; }
     var iframeSrc = "";
     for (var i = 0; i < regions.length; i++) {
         if (regions[i].left <= camera.x && camera.x <= regions[i].right

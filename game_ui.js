@@ -8,9 +8,13 @@
 /* global wasm_bindgen, WebSocket, FileReader, Image */
 
 const KEY_ENTER = 13;
+const ADMIN = (document.location.hostname === "localhost"); // no cheat protection, go ahead
 const tileSize = 8;
 const zoom = 3;
 
+/* globals: */
+let map = null;
+let camera = {x: 127, y: 154, facing: 'east'}; // in tiles
 let connection;
 
 class Connection {
@@ -91,6 +95,82 @@ const output = {
 
 const input = {
 };
+
+
+function setMapDataFromImage(image) {
+    const canvas = document.createElement('canvas');
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(image, 0, 0);
+
+    var imageDataU32 = new Uint32Array(ctx.getImageData(0, 0, image.width, image.height).data.buffer);
+    map = [];
+    for (var y = 0; y < image.height; y++) {
+        map[y] = [];
+        for (var x = 0; x < image.width; x++) {
+            var i = image.width * y + x;
+            const colorABGR = imageDataU32[i] & 0xffffff;
+            map[y][x] = colorToTile(imageDataU32[i]);
+        }
+    }
+
+    wasm_bindgen.set_mapdata(image.width, image.height, imageDataU32);
+}
+
+
+function drawTile(ctx, x, y, tile) {
+    for (var i = 3; i+1 < tileTypes[tile.type].length; i += 2) {
+        if (tileTypes[tile.type][i] == 'color') {
+            ctx.fillStyle = tileTypes[tile.type][i+1];
+            ctx.fillRect(x, y, tileSize, tileSize);
+        } else if (tileTypes[tile.type][i] == 'tile') {
+            for (var j = 0; j < tileTypes.length; j++) {
+                if (tileTypes[j][0] == tileTypes[tile.type][i+1]) {
+                    drawTile(ctx, x, y, {type: j});
+                }
+            }
+        } else {
+            var spritesheet = tileTypes[tile.type][i];
+            var spriteId = tileTypes[tile.type][i+1];
+            spritesheet.drawSpriteTo(ctx, x, y, spriteId);
+        }
+    }
+}
+
+
+function draw_map(playerFacing, playerX, playerY) {
+    camera.facing = ['north', 'east', 'south', 'west'][playerFacing];
+    camera.x = playerX;
+    camera.y = playerY;
+    function roundUp(x) { return Math.floor(x/tileSize) * tileSize; }
+    var v = {w: roundUp(widgets.view.clientWidth), h: roundUp(widgets.view.clientHeight)};
+    widgets.view.width = v.w;
+    widgets.view.height = v.h;
+    
+    var ctx = widgets.view.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+
+    ctx.scale(zoom, zoom);
+    for (var tileY = 0; tileY < map.length; tileY++) {
+        for (var tileX = 0; tileX < map[tileY].length; tileX++) {
+            var screenX = (tileX-0.5 - camera.x) * tileSize + v.w/zoom/2;
+            var screenY = (tileY-0.5 - camera.y) * tileSize + v.h/zoom/2;
+            if (screenX > -tileSize && screenX < v.w/zoom+tileSize
+                && screenY > -tileSize && screenY < v.h/zoom+tileSize) {
+                drawTile(ctx, screenX, screenY, map[tileY][tileX]);
+            }
+        }
+    }
+    var playerOffset = waterDepthAt(camera.x, camera.y);
+    output.oryx_char.drawSpriteTo(ctx,
+                          -0.5*tileSize + v.w/zoom/2, -0.5*tileSize + v.h/zoom/2 + playerOffset,
+                           {'east': 0x1e0, 'south': 0x1e1, 'west': 0x1e2, 'north': 0x1e3}[camera.facing],
+                           tileSize, tileSize - playerOffset);
+    
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+
 
 
 /* Send events to the Rust side:
@@ -174,7 +254,6 @@ Promise.all([
 ]).then(() => {
     loadImage("assets/nexus-init.png").then(image => {
         setMapDataFromImage(image);
-        drawMap();
         connection = new Connection(
             window.location.hostname==='localhost'
                 ? "ws://localhost:9001/"
@@ -183,5 +262,3 @@ Promise.all([
         gameLoop.loop();
     });
 });
-
-

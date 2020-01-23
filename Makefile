@@ -14,7 +14,7 @@ SERVER_LINUX = target/x86_64-unknown-linux-musl/debug/game_server
 
 all: build/game_client.wasm build/game_server $(SERVER_MAC)
 
-run-server: $(SERVER_MAC)
+run-server: build/game_client.wasm $(SERVER_MAC)
 	RUST_BACKTRACE=1 $(SERVER_MAC)
 
 $(SERVER_MAC): $(RS_SRC)
