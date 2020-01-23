@@ -50,7 +50,7 @@ var oryx_char = new Spritesheet();
  *     [name, color, passable, spritesheet, spriteid, ...]
  * When spritesheet is the string 'tile', spriteid will be another entry in tileTypes
  */
-const tileTypes = 
+const tileTypes =
     [
         ["Void", 0xffffff, false, oryx_env, 0x73],
         ["Wall", 0xecedf9, false, oryx_env, 0x04, 'color', "hsla(30,40%,100%,0.5)"],
@@ -127,16 +127,19 @@ function loadMapData(callback) {
         ctx.drawImage(image, 0, 0);
 
         var imageData = ctx.getImageData(0, 0, image.width, image.height).data;
+        let imageDataU32 = new Uint32Array(imageData.buffer);
         map = [];
         for (var y = 0; y < image.height; y++) {
             map[y] = [];
             for (var x = 0; x < image.width; x++) {
                 var i = 4 * (image.width * y + x);
                 var color = (imageData[i] << 16) | (imageData[i+1] << 8) | imageData[i+2];
+                imageDataU32[i/4] = color; // convert from 0xAABBGGRR to 0x00RRGGBB
                 map[y][x] = colorToTile(color);
             }
         }
 
+        setTimeout(() => wasm_bindgen.set_mapdata(image.width, image.height, imageDataU32), 200);
         callback();
     });
 }
@@ -216,8 +219,6 @@ function drawMap() {
     view.height = v.h;
     
     var ctx = view.getContext('2d');
-    ctx.mozImageSmoothingEnabled = false; // needed in firefox 38
-    ctx.msImageSmoothingEnabled = false; // don't know if I need this for IE
     ctx.imageSmoothingEnabled = false;
 
     ctx.scale(zoom, zoom);
@@ -240,107 +241,31 @@ function drawMap() {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 }
 
-/* **********************************************************************
- * Input
- */
-var KEYS_PRESSED = [];
-var key_codes = {w: 'W'.charCodeAt(0),
-                 a: 'A'.charCodeAt(0),
-                 s: 'S'.charCodeAt(0),
-                 d: 'D'.charCodeAt(0),
-                 up: 38,
-                 left: 37,
-                 down: 40,
-                 right: 39};
-
-function keyDownHandler(event) {
-    var c = event.keyCode, p = event.preventDefault.bind(event);
-    KEYS_PRESSED[c] = true;
-    if (c == key_codes.w || c == key_codes.up) { movePlayerTo(camera.x, camera.y, 'north'); p(); }
-    if (c == key_codes.a || c == key_codes.left) { movePlayerTo(camera.x, camera.y, 'west');  p(); }
-    if (c == key_codes.s || c == key_codes.down) { movePlayerTo(camera.x, camera.y, 'south'); p(); }
-    if (c == key_codes.d || c == key_codes.right) { movePlayerTo(camera.x, camera.y, 'east');  p(); }
-}
-
-function keyUpHandler(event) {
-    KEYS_PRESSED[event.keyCode] = false;
-    if (Object.keys(key_codes).some((k) => key_codes[k] == event.keyCode)) {
-        event.preventDefault();
-    }
-}
-
-function movePlayerTo(newX, newY, newFacing) {
-    var redraw = false;
-
-    if (newFacing != camera.facing) {
-        camera.facing = newFacing;
-        redraw = true;
-    }
-    
-    if (newX != camera.x || newY != camera.y) {
-        if (0 <= newY && newY < map.length && 0 <= newX && newX < map[0].length) {
-            var tile = map[newY][newX];
-            if (tileTypes[tile.type][2] /* passable */ || admin) {
-                camera.x = newX;
-                camera.y = newY;
-                redraw = true;
+function updateMessages() {
+    var message = "";
+    if (admin) { message = "x=" + camera.x + " y=" + camera.y; }
+    var iframeSrc = "";
+    for (var i = 0; i < regions.length; i++) {
+        if (regions[i].left <= camera.x && camera.x <= regions[i].right
+            && regions[i].top <= camera.y && camera.y <= regions[i].bottom) {
+            if (!regions[i].discovered) {
+                regions[i].discovered = true;
+                discoveries++;
             }
+            message = regions[i].message;
+            iframeSrc = regions[i].url || "";
         }
     }
-    
-    if (redraw) {
-        drawMap();
 
-        var message = "";
-        if (admin) { message = "x=" + camera.x + " y=" + camera.y; }
-        var iframeSrc = "";
-        for (var i = 0; i < regions.length; i++) {
-            if (regions[i].left <= camera.x && camera.x <= regions[i].right
-                && regions[i].top <= camera.y && camera.y <= regions[i].bottom) {
-                if (!regions[i].discovered) {
-                    regions[i].discovered = true;
-                    discoveries++;
-                }
-                message = regions[i].message;
-                iframeSrc = regions[i].url || "";
-            }
-        }
-
-        document.getElementById('message').textContent = message;
-    }
+    document.getElementById('message').textContent = message;
 }
 
-
-var stepsPerSecond = 10;
-var _lastTime = Date.now();
-function gameLoop() {
-    var time = Date.now();
-    // The more you've discovered, the faster you'll walk!
-    if (time - _lastTime > 1000/(stepsPerSecond + discoveries) /* milliseconds */) {
-        var dx = 0, dy = 0, facing = camera.facing;
-        _lastTime = time;
-        if (KEYS_PRESSED[key_codes.w] || KEYS_PRESSED[key_codes.up]) { dy -= 1; }
-        if (KEYS_PRESSED[key_codes.a] || KEYS_PRESSED[key_codes.left]) { dx -= 1; }
-        if (KEYS_PRESSED[key_codes.s] || KEYS_PRESSED[key_codes.down]) { dy += 1; }
-        if (KEYS_PRESSED[key_codes.d] || KEYS_PRESSED[key_codes.right]) { dx += 1; }
-        if (dy == -1 && dx == 0) { facing = 'north'; }
-        if (dx == -1 && dy == 0) { facing = 'west'; }
-        if (dy == 1 && dx == 0) { facing = 'south'; }
-        if (dx == 1 && dy == 0) { facing = 'east'; }
-        movePlayerTo(camera.x + dx, camera.y + dy, facing);
-    }
-    checkFocus();
-    requestAnimationFrame(gameLoop);
-}
-
-gameLoop();
 
 /* **********************************************************************
  * Load everything
  */
 function mapLoaded() {
     drawMap();
-    movePlayerTo(camera.x, camera.y, 'south');
 }
 loadMapData(mapLoaded);
 oryx_env.loadImage("assets/lofi_environment_a.png", drawMap);

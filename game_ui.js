@@ -81,14 +81,12 @@ widgets.view.addEventListener('keydown', event => {
         widgets.input.focus();
         event.preventDefault();
     } else {
-        wasm_bindgen.handle_keydown(event.keyCode);
-        keyDownHandler(event); // HACK: refactor
+        wasm_bindgen.handle_keydown(event.keyCode) && event.preventDefault();
     }
 });
 
 widgets.view.addEventListener('keyup', event => {
-    wasm_bindgen.handle_keyup(event.keyCode);
-    keyUpHandler(event); // HACK: refactor
+    wasm_bindgen.handle_keyup(event.keyCode) && event.preventDefault();
 });
 
 function formSubmit() { // called when pressing Enter on text input box
@@ -101,6 +99,19 @@ function formSubmit() { // called when pressing Enter on text input box
     return false;
 }
 
+let gameLoop = {
+    TICKS_PER_SECOND: 10,
+    lastTime: Date.now(),
+    loop() {
+        var time = Date.now();
+        if (time - this.lastTime > 1000/this.TICKS_PER_SECOND) {
+            this.lastTime = time;
+            wasm_bindgen.game_loop();
+            checkFocus();
+        }
+        requestAnimationFrame(gameLoop.loop.bind(gameLoop));
+    },
+};
 
 // We need keyboard focus; this is a hack to tell the player to click
 function checkFocus() {
@@ -128,4 +139,5 @@ wasm_bindgen("game_client_bg.wasm")
                 ? "ws://localhost:9001/"
                 : "wss://www.redblobgames.com/ws/"
         );
+        gameLoop.loop();
     });
