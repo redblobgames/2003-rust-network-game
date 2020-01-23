@@ -5,9 +5,11 @@
  */
 'use strict';
 
-/* global wasm_bindgen, WebSocket, FileReader */
+/* global wasm_bindgen, WebSocket, FileReader, Image */
 
 const KEY_ENTER = 13;
+const tileSize = 8;
+const zoom = 3;
 
 let connection;
 
@@ -47,7 +49,30 @@ const widgets = {
     input: document.querySelector("#input"),
 };
 
+
+class Spritesheet {
+    image = null;
+    
+    loadImage(url) {
+        return loadImage(url).then(image => { this.image = image; });
+    }
+
+    drawSpriteTo(ctx, x, y, spriteId, tileWidth=tileSize, tileHeight=tileSize) {
+        var row = spriteId >> 4;
+        var col = spriteId & 0x0f;
+        ctx.drawImage(this.image,
+                      col*tileSize, row*tileSize,
+                      tileWidth, tileHeight,
+                      x, y,
+                      tileWidth, tileHeight);
+    }
+}
+
 const output = {
+    oryx_env: new Spritesheet(),
+    oryx_obj: new Spritesheet(),
+    oryx_char: new Spritesheet(),
+    
     set_name(name) {
         const span = document.querySelector("#name");
         span.textContent = name;
@@ -131,9 +156,25 @@ window.addEventListener('focusout', checkFocus, true);
 
 
 
+function loadImage(url) {
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error(`failed loading ${url}`));
+        image.src = url;
+    });
+}
 
-wasm_bindgen("game_client_bg.wasm")
-    .then(() => {
+
+Promise.all([
+    output.oryx_env.loadImage("assets/lofi_environment_a.png"),
+    output.oryx_obj.loadImage("assets/lofi_obj_a.png"),
+    output.oryx_char.loadImage("assets/lofi_char_a.png"),
+    wasm_bindgen("game_client_bg.wasm")
+]).then(() => {
+    loadImage("assets/nexus-init.png").then(image => {
+        setMapDataFromImage(image);
+        drawMap();
         connection = new Connection(
             window.location.hostname==='localhost'
                 ? "ws://localhost:9001/"
@@ -141,3 +182,6 @@ wasm_bindgen("game_client_bg.wasm")
         );
         gameLoop.loop();
     });
+});
+
+
