@@ -32,10 +32,17 @@ mod server {
         Player(ServerToClientMessage),
     }
 
+    struct PlayerData {
+        channel: mpsc::Sender<Reply>,
+        player_pos: Position,
+    }
+    
     // https://en.wikipedia.org/wiki/List_of_Egyptian_deities
-    const NAMES: &[&str] = &["Anubis", "Wosret", "Pakhet", "Aten", "Anuket", "Isis", "Maat",
-                             "Nefertum", "Ra", "Thoth", "Khepri", "Kek", "Ba'alat", "Mafdet",
-                             "Qerhet", "Satet", "Esna", "Thmei", "Tafner", "Unnit", "Apep"];
+    const NAMES: &[&str] = &[
+        "Anubis", "Wosret", "Pakhet", "Aten", "Anuket", "Isis", "Maat",
+        "Nefertum", "Ra", "Thoth", "Khepri", "Kek", "Ba'alat", "Mafdet",
+        "Qerhet", "Satet", "Esna", "Thmei", "Tafner", "Unnit", "Apep"
+    ];
     
     pub fn run() {
         let socket_timeout = time::Duration::new(0, 500 * 1_000_000);
@@ -43,29 +50,45 @@ mod server {
         let (sim_tx, sim_rx) = mpsc::channel::<Request>();
 
         thread::spawn(move || {
-            let mut channels = HashMap::new();
+            use ServerToClientMessage::*;
+            
+            let mut players: HashMap<String, PlayerData> = HashMap::new();
             println!("SIM: begin");
             for request in sim_rx {
                 match request {
                     Request::Connect(addr, net_tx) => {
                         println!("SIM: connect from {}", addr);
-                        net_tx.send(Reply::Player(ServerToClientMessage::SetName{name: addr.clone()})).unwrap();
-                        channels.insert(addr, net_tx);
-                        for net_tx in channels.values() {
-                            net_tx.send(Reply::Player(ServerToClientMessage::SetConnectionCount{count: channels.len() as u32})).unwrap();
+                        net_tx.send(Reply::Player(Initialize{id: addr.clone()})).unwrap();
+                        for (other_id, other_player) in players.iter() {
+                            net_tx.send(Reply::Player(UpdatePlayer{id: other_id.clone(), pos: other_player.player_pos})).unwrap();
+                        }
+                        players.insert(addr.clone(), PlayerData{channel: net_tx, player_pos: INITIAL_PLAYER_POS});
+                        for player in players.values() {
+                            player.channel.send(Reply::Player(UpdatePlayer{id: addr.clone(), pos: INITIAL_PLAYER_POS})).unwrap();
                         }
                     },
                     Request::Player(addr, ClientToServerMessage::Chat{text}) => {
                         println!("SIM: message from {}: {}", addr, text);
-                        for net_tx in channels.values() {
-                            net_tx.send(Reply::Player(ServerToClientMessage::Chat{from: addr.clone(), text: text.clone()})).unwrap();
+                        for player in players.values() {
+                            player.channel.send(Reply::Player(Chat{id: addr.clone(), text: text.clone()})).unwrap();
+                        }
+                    },
+                    Request::Player(addr, ClientToServerMessage::MoveTo{pos}) => {
+                        println!("SIM: move {} to {:?}", addr, pos);
+                        let mut player = players.get_mut(&addr).unwrap();
+                        player.player_pos = pos;
+                        for player in players.values() {
+                            player.channel.send(Reply::Player(UpdatePlayer{id: addr.clone(), pos})).unwrap();
                         }
                     },
                     Request::Disconnect(addr) => {
                         println!("SIM: disconnect from {}", addr);
-                        channels.remove(&addr);
-                        for net_tx in channels.values() {
-                            net_tx.send(Reply::Player(ServerToClientMessage::SetConnectionCount{count: channels.len() as u32})).unwrap();
+                        players.remove(&addr);
+                        for player in players.values() {
+                            match player.channel.send(Reply::Player(DeletePlayer{id: addr.clone()})) {
+                                Ok(_) => (),
+                                Err(e) => println!("   error {}", e), // TODO: "sending on a closed channel" if two clients disconnect at same time
+                            };
                         }
                     },
                 };

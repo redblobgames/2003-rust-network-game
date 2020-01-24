@@ -139,34 +139,50 @@ function drawTile(ctx, x, y, tile) {
 }
 
 
-function draw_map(playerFacing, playerX, playerY) {
-    camera.facing = ['north', 'east', 'south', 'west'][playerFacing];
+function draw_map(playerFacing, playerX, playerY, otherPlayerPos) {
+    const FACING = ['north', 'east', 'south', 'west'];
+    camera.facing = FACING[playerFacing];
     camera.x = playerX;
     camera.y = playerY;
     function roundUp(x) { return Math.floor(x/tileSize) * tileSize; }
-    var v = {w: roundUp(widgets.view.clientWidth), h: roundUp(widgets.view.clientHeight)};
+    let v = {w: roundUp(widgets.view.clientWidth), h: roundUp(widgets.view.clientHeight)};
     widgets.view.width = v.w;
     widgets.view.height = v.h;
     
-    var ctx = widgets.view.getContext('2d');
+    const ctx = widgets.view.getContext('2d');
     ctx.imageSmoothingEnabled = false;
 
     ctx.scale(zoom, zoom);
-    for (var tileY = 0; tileY < map.length; tileY++) {
-        for (var tileX = 0; tileX < map[tileY].length; tileX++) {
-            var screenX = (tileX-0.5 - camera.x) * tileSize + v.w/zoom/2;
-            var screenY = (tileY-0.5 - camera.y) * tileSize + v.h/zoom/2;
+    for (let tileY = 0; tileY < map.length; tileY++) {
+        for (let tileX = 0; tileX < map[tileY].length; tileX++) {
+            let screenX = (tileX-0.5 - camera.x) * tileSize + v.w/zoom/2;
+            let screenY = (tileY-0.5 - camera.y) * tileSize + v.h/zoom/2;
             if (screenX > -tileSize && screenX < v.w/zoom+tileSize
                 && screenY > -tileSize && screenY < v.h/zoom+tileSize) {
                 drawTile(ctx, screenX, screenY, map[tileY][tileX]);
             }
         }
     }
-    var playerOffset = waterDepthAt(camera.x, camera.y);
+    for (let i = 0; i < otherPlayerPos.length; i += 3) {
+        let x = otherPlayerPos[i], y = otherPlayerPos[i+1], facing = FACING[otherPlayerPos[i+2]];
+        let screenX = (x-0.5 - camera.x) * tileSize + v.w/zoom/2;
+        let screenY = (y-0.5 - camera.y) * tileSize + v.h/zoom/2;
+        if (screenX > -tileSize && screenX < v.w/zoom+tileSize
+            && screenY > -tileSize && screenY < v.h/zoom+tileSize) {
+            const offset = waterDepthAt(x, y);
+            output.oryx_char.drawSpriteTo(ctx,
+                                          screenX, screenY + offset,
+                                          {'east': 0x1dc, 'south': 0x1dd, 'west': 0x1de, 'north': 0x1df}[facing],
+                                          tileSize, tileSize - offset);
+        }
+    }
+
+    const playerOffset = waterDepthAt(camera.x, camera.y);
     output.oryx_char.drawSpriteTo(ctx,
                           -0.5*tileSize + v.w/zoom/2, -0.5*tileSize + v.h/zoom/2 + playerOffset,
                            {'east': 0x1e0, 'south': 0x1e1, 'west': 0x1e2, 'north': 0x1e3}[camera.facing],
                            tileSize, tileSize - playerOffset);
+
     
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 }

@@ -25,6 +25,7 @@ mod client {
     use std::sync::Mutex;
     use crate::common::*;
 
+    /* These are the JS functions we want to call from Rust */
     #[wasm_bindgen]
     extern "C" {
         #[wasm_bindgen(js_namespace = console, js_name = log)]
@@ -43,7 +44,7 @@ mod client {
         fn set_connection_count(count: u32);
 
         #[wasm_bindgen]
-        fn draw_map(player_facing: i32, player_x: i32, player_y: i32);
+        fn draw_map(player_facing: i32, player_x: i32, player_y: i32, other_player_pos: Vec<i32> /* x, y, facing */);
     }
 
     macro_rules! console_log {
@@ -51,23 +52,14 @@ mod client {
         ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
     }
     
-    #[derive(Copy, Clone, PartialEq, Debug)]
-    enum Dir {
-        North = 0, East = 1, South = 2, West = 3,
-    }
-
-    #[derive(Copy, Clone)]
-    enum Command {
-        Move(Dir),
-    }
-    
     struct World {
         needs_redraw: bool,
         keys_down: HashSet<i32>,
         map: Vec<u32>,
         map_size: (usize, usize),
-        player_pos: (i32, i32),
-        player_facing: Dir,
+        player_id: String,
+        player_pos: Position,
+        other_players: HashMap<String, Position>,
     }
 
     const KEY_UP: i32 = 38;
@@ -94,8 +86,9 @@ mod client {
                 keys_down: HashSet::new(),
                 map: vec!(),
                 map_size: (0, 0),
-                player_pos: (127, 154),
-                player_facing: Dir::South,
+                player_id: String::from(""),
+                player_pos: INITIAL_PLAYER_POS,
+                other_players: HashMap::new(),
             }
         );
     }
@@ -104,23 +97,28 @@ mod client {
         if x < lo { lo } else if x > hi { hi } else { x }
     }
     
-    fn set_player_facing(world: &mut World, dir: &Dir) {
-        if world.player_facing != *dir {
-            world.player_facing = *dir;
+    // return true to redraw
+    fn set_player_pos(world: &mut World, pos: Position) {
+        if pos != world.player_pos {
+            // TODO: check for map being passable
+            world.player_pos = Position{
+                x: clamp(pos.x, 0, world.map_size.0 as i32 - 1),
+                y: clamp(pos.y, 0, world.map_size.1 as i32 - 1),
+                facing: pos.facing,
+            };
             world.needs_redraw = true;
+            console_log!("player moved to {:?}", world.player_pos);
+            
+            let msg = ClientToServerMessage::MoveTo{pos: world.player_pos};
+            let encoded: Vec<u8> = bincode::serialize(&msg).unwrap();
+            send_to_server(&encoded);
         }
     }
 
-    // return true to redraw
-    fn set_player_pos(world: &mut World, pos: (i32, i32)) {
-        if pos != world.player_pos {
-            // TODO: check for map being passable
-            world.player_pos = (clamp(pos.0, 0, world.map_size.0 as i32 - 1),
-                                clamp(pos.1, 0, world.map_size.1 as i32 - 1));
-            world.needs_redraw = true;
-            console_log!("player moved to {:?}", world.player_pos);
-        }
+    fn run_player_command(_world: &mut World, _command: Command) {
+        // TODO: act immediately instead of waiting for tick
     }
+
     
     #[wasm_bindgen]
     pub fn connected() {
@@ -139,8 +137,10 @@ mod client {
         let mut world = WORLD.lock().unwrap();
         let mut dx: i32 = 0;
         let mut dy: i32 = 0;
+        let mut new_facing: Dir = world.player_pos.facing;
         for key in world.keys_down.iter() {
             if let Some(Command::Move(dir)) = KEYBINDINGS.get(&key) {
+                new_facing = *dir;
                 match dir {
                     Dir::North => dy -= 1,
                     Dir::East => dx += 1,
@@ -150,14 +150,28 @@ mod client {
             }
         }
         // Clamp to -1:+1. Pressing 'A' + Left causes dx to be -2, and we want it to be -1.
-        let new_pos = (world.player_pos.0 + clamp(dx, -1, 1),
-                       world.player_pos.1 + clamp(dy, -1, 1));
+        let new_pos = Position{
+            x: world.player_pos.x + clamp(dx, -1, 1),
+            y: world.player_pos.y + clamp(dy, -1, 1),
+            facing: new_facing,
+        };
         set_player_pos(&mut world, new_pos);
 
         if world.needs_redraw {
             world.needs_redraw = false;
-            draw_map(world.player_facing as i32,
-                     world.player_pos.0, world.player_pos.1);
+            let mut other_player_pos: Vec<i32> = Vec::new();
+            for (other_id, other_player) in world.other_players.iter() {
+                if *other_id != world.player_id {
+                    other_player_pos.push(other_player.x);
+                    other_player_pos.push(other_player.y);
+                    other_player_pos.push(other_player.facing as i32);
+                }
+            }
+            draw_map(world.player_pos.facing as i32,
+                     world.player_pos.x,
+                     world.player_pos.y,
+                     other_player_pos);
+            // TODO: draw other players, excluding self
         }
     }
     
@@ -165,14 +179,11 @@ mod client {
     pub fn handle_keydown(key: i32) -> bool {
         let mut world = WORLD.lock().unwrap();
         world.keys_down.insert(key);
-        let command = KEYBINDINGS.get(&key);
-        match command {
-            Some(Command::Move(dir)) => set_player_facing(&mut world, dir),
-            None => (),
-        };
-        return command.is_some();
-        // TODO: move player now too, to get immediate response; but
-        // also need to record time so that we don't move too soon
+        if let Some(command) = KEYBINDINGS.get(&key) {
+            run_player_command(&mut world, *command);
+            return true;
+        }
+        return false;
     }
 
     #[wasm_bindgen]
@@ -184,18 +195,37 @@ mod client {
     
     #[wasm_bindgen]
     pub fn handle_text_entry(text: &str) {
-        let reply = ClientToServerMessage::Chat{text: String::from(text)};
-        let encoded: Vec<u8> = bincode::serialize(&reply).unwrap();
+        let msg = ClientToServerMessage::Chat{text: String::from(text)};
+        let encoded: Vec<u8> = bincode::serialize(&msg).unwrap();
         send_to_server(&encoded);
     }
 
     #[wasm_bindgen]
     pub fn handle_message(data: &[u8]) {
+        let mut world = WORLD.lock().unwrap();
+        use ServerToClientMessage::*;
+        
         let request: ServerToClientMessage = bincode::deserialize(&data).unwrap();
+        console_log!("{:?}", request);
         match request {
-            ServerToClientMessage::Chat{from, text} => add_to_output(&from, &text),
-            ServerToClientMessage::SetName{name} => set_name(&name),
-            ServerToClientMessage::SetConnectionCount{count} => set_connection_count(count),
+            Initialize{id} => {
+                set_name(&id);
+                world.player_id = id;
+                set_connection_count(1);
+            },
+            Chat{id, text} => {
+                add_to_output(&id, &text);
+            },
+            UpdatePlayer{id, pos} => {
+                world.other_players.insert(id, pos);
+                set_connection_count(world.other_players.len() as u32);
+                world.needs_redraw = true;
+            },
+            DeletePlayer{id} => {
+                world.other_players.remove(&id);
+                set_connection_count(world.other_players.len() as u32);
+                world.needs_redraw = true;
+            },
         };
     }
 }

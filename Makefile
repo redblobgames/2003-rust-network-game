@@ -34,7 +34,8 @@ build/game_server: $(SERVER_LINUX)
 
 build/game_client.wasm: $(CLIENT_WASM) embed.html
 	wasm-bindgen --target no-modules $< --out-dir build/
-	cp embed.html game_ui.js wildshadow.js build/
+	cp game_ui.js wildshadow.js build/
+	perl -p -e 's|\?\"|"?".int(rand 1000000)."\""|ge' <embed.html >build/embed.html
 	rsync -a -i assets/ build/assets/
 
 clean:

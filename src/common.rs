@@ -8,14 +8,35 @@
 
 use serde::{Serialize, Deserialize};
 
-#[derive(Serialize, Deserialize)]
-pub enum ServerToClientMessage {
-    Chat{from: String, text: String},
-    SetName{name: String},
-    SetConnectionCount{count: u32},
+#[derive(Copy, Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub enum Dir {
+    North = 0, East = 1, South = 2, West = 3,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Copy, Clone)]
+pub enum Command {
+    Move(Dir),
+}
+
+#[derive(Copy, Clone, PartialEq, Debug, Serialize, Deserialize)]
+pub struct Position {
+    pub x: i32,
+    pub y: i32,
+    pub facing: Dir,
+}
+
+pub const INITIAL_PLAYER_POS: Position = Position{x: 127, y: 154, facing: Dir::South};
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum ServerToClientMessage {
+    Initialize{id: String},
+    Chat{id: String, text: String},
+    UpdatePlayer{id: String, pos: Position},
+    DeletePlayer{id: String},
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub enum ClientToServerMessage {
     Chat{text: String},
+    MoveTo{pos: Position},
 }
